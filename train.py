@@ -60,7 +60,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 if opt.attentiontype in ['colrow','row']:
     opt.ff_dropout = 0.8
     opt.transformer_depth = 1
-    if opt.dataset in ['arrhythmia','philippine','creditcard']:
+    if opt.dataset in ['arrhythmia','philippine','creditcard','crc']:
         opt.embedding_size = 8
         opt.attention_heads = 4
 
@@ -74,10 +74,15 @@ if opt.dataset in ['philippine']:
     if opt.attentiontype in ['col']:
         opt.embedding_size = 8
 
-if opt.dataset in ['arcene', 'crc']:
+if opt.dataset in ['arcene']:
     opt.embedding_size = 4
     if opt.attentiontype in ['colrow','col']:
         opt.attention_heads = 1
+        opt.transformer_depth = 4
+
+if opt.dataset in ['crc']:
+    opt.embedding_size = 8
+    if opt.attentiontype in ['colrow','col']:
         opt.transformer_depth = 4
 
 if opt.dataset in ['mnist']:
@@ -374,4 +379,3 @@ else:
 if opt.active_log:
     wandb.log({'total_parameters': total_parameters, 'test_auroc_bestep':best_test_auroc , 
     'test_accuracy_bestep':best_test_accuracy,'cat_dims':len(cat_idxs) , 'con_dims':len(con_idxs) })
-

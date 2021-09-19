@@ -107,6 +107,7 @@ def data_download(dataset):
     elif dataset == 'crc':
         train = pd.read_csv(out,sep=',',skiprows=0)
         tg_list = train['target'].tolist()
+        train = train.loc[:, train.std() > 0]
         train['target'] = tg_list
     elif dataset == 'creditcard':
         train = pd.read_csv(out,header=None,skiprows=1)
