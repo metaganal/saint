@@ -15,7 +15,7 @@ import os
 import numpy as np
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--dataset', default='1995_income', type=str, choices=['1995_income','bank_marketing','qsar_bio','online_shoppers','blastchar','htru2','shrutime','spambase','philippine','mnist','loan_data','arcene','volkert','creditcard','arrhythmia','forest','kdd99']) 
+parser.add_argument('--dataset', default='1995_income', type=str, choices=['1995_income','bank_marketing','qsar_bio','online_shoppers','blastchar','htru2','shrutime','spambase','philippine','mnist','loan_data','arcene','volkert','creditcard','arrhythmia','forest','kdd99', 'crc']) 
 parser.add_argument('--cont_embeddings', default='MLP', type=str,choices = ['MLP','Noemb','pos_singleMLP'])
 parser.add_argument('--embedding_size', default=32, type=int)
 parser.add_argument('--transformer_depth', default=6, type=int)
@@ -59,7 +59,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 if opt.attentiontype in ['colrow','row']:
     opt.ff_dropout = 0.8
-    opt.transformer_depth = 1     
+    opt.transformer_depth = 1
     if opt.dataset in ['arrhythmia','philippine','creditcard']:
         opt.embedding_size = 8
         opt.attention_heads = 4
@@ -74,7 +74,7 @@ if opt.dataset in ['philippine']:
     if opt.attentiontype in ['col']:
         opt.embedding_size = 8
 
-if opt.dataset in ['arcene']:
+if opt.dataset in ['arcene', 'crc']:
     opt.embedding_size = 4
     if opt.attentiontype in ['colrow','col']:
         opt.attention_heads = 1
@@ -131,16 +131,16 @@ else:
     continuous_mean_std = None 
     y_dim = 10
 
-train_bsize = opt.batchsize    
+train_bsize = opt.batchsize
 if opt.ssl_avail_y>0:
     train_pts_touse = np.random.choice(X_train['data'].shape[0], opt.ssl_avail_y)
     X_train['data'] = X_train['data'][train_pts_touse,:]
     y_train['data'] = y_train['data'][train_pts_touse]
-    
+
     X_train['mask'] = X_train['mask'][train_pts_touse,:]
     y_train['mask'] = y_train['mask'][train_pts_touse]
     train_bsize = min(opt.ssl_avail_y//4,opt.batchsize)
-    
+
 train_ds = DataSetCatCon(X_train, y_train, cat_idxs,continuous_mean_std, is_pretraining=True)
 trainloader = DataLoader(train_ds, batch_size=train_bsize, shuffle=True,num_workers=4)
 
@@ -166,15 +166,15 @@ if opt.dataset not in ['mnist','volkert']:
     cat_dims = np.append(np.array(cat_dims),np.array([2])).astype(int) # unique values in cat column, with 2 appended in the end as the number of unique values of y. This is the case of binary classification
     model = SAINT(
     categories = tuple(cat_dims), 
-    num_continuous = len(con_idxs),                
-    dim = opt.embedding_size,                           
-    dim_out = 1,                       
-    depth = opt.transformer_depth,                       
-    heads = opt.attention_heads,                         
-    attn_dropout = opt.attention_dropout,             
-    ff_dropout = opt.ff_dropout,                  
-    mlp_hidden_mults = (4, 2),       
-    continuous_mean_std = continuous_mean_std, 
+    num_continuous = len(con_idxs),
+    dim = opt.embedding_size,
+    dim_out = 1,
+    depth = opt.transformer_depth,
+    heads = opt.attention_heads,
+    attn_dropout = opt.attention_dropout,
+    ff_dropout = opt.ff_dropout,
+    mlp_hidden_mults = (4, 2),
+    continuous_mean_std = continuous_mean_std,
     cont_embeddings = opt.cont_embeddings,
     attentiontype = opt.attentiontype,
     final_mlp_style = opt.final_mlp_style,
@@ -185,13 +185,13 @@ elif opt.dataset == 'volkert':
     cat_dims = np.append(np.array(cat_dims),np.array([10])).astype(int)
     model = SAINT(
     categories = tuple(cat_dims), 
-    num_continuous = len(con_idxs),                
-    dim = opt.embedding_size,                           
-    dim_out = 1,                       
-    depth = opt.transformer_depth,                       
-    heads = opt.attention_heads,                         
-    attn_dropout = opt.attention_dropout,             
-    ff_dropout = opt.ff_dropout,                  
+    num_continuous = len(con_idxs),
+    dim = opt.embedding_size,
+    dim_out = 1,
+    depth = opt.transformer_depth,
+    heads = opt.attention_heads,
+    attn_dropout = opt.attention_dropout,
+    ff_dropout = opt.ff_dropout,
     mlp_hidden_mults = (4, 2),       # relative multiples of each hidden dimension of the last mlp to logits
     continuous_mean_std = continuous_mean_std,
     cont_embeddings = opt.cont_embeddings,
@@ -205,13 +205,13 @@ elif opt.dataset == 'mnist':
     cat_dims = np.append(np.array(cat_dims),np.array([10])).astype(int)
     model = SAINT_vision(
     categories = tuple(cat_dims), 
-    num_continuous = len(con_idxs),                
-    dim = opt.embedding_size,                           
-    dim_out = 1,                       
-    depth = opt.transformer_depth,                       
-    heads = opt.attention_heads,                         
-    attn_dropout = opt.attention_dropout,             
-    ff_dropout = opt.ff_dropout,                  
+    num_continuous = len(con_idxs),
+    dim = opt.embedding_size,
+    dim_out = 1,
+    depth = opt.transformer_depth,
+    heads = opt.attention_heads,
+    attn_dropout = opt.attention_dropout,
+    ff_dropout = opt.ff_dropout,
     mlp_hidden_mults = (4, 2),       # relative multiples of each hidden dimension of the last mlp to logits
     continuous_mean_std = continuous_mean_std,
     cont_embeddings = opt.cont_embeddings,
@@ -242,7 +242,7 @@ if opt.pretrain:
         for i, data in enumerate(pt_trainloader, 0):
             optimizer.zero_grad()
             x_categ, x_cont, cat_mask, con_mask = data[0].to(device), data[1].to(device),data[2].to(device),data[3].to(device)
-            
+
             # embed_data_mask function is used to embed both categorical and continuous data.
             if 'cutmix' in opt.pt_aug:
                 from augmentations import add_noise
@@ -251,7 +251,7 @@ if opt.pretrain:
             else:
                 _ , x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model,vision_dset)
             _ , x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model,vision_dset)
-            
+
             if 'mixup' in opt.pt_aug:
                 from augmentations import mixup_data
                 x_categ_enc_2, x_cont_enc_2 = mixup_data(x_categ_enc_2, x_cont_enc_2 , lam=opt.mixup_lam)
@@ -296,7 +296,7 @@ if opt.pretrain:
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-        
+
         print(f'Epoch: {epoch}, Running Loss: {running_loss}')
         if opt.active_log:
             wandb.log({'pt_epoch': epoch ,'pretrain_epoch_loss': running_loss
@@ -332,7 +332,7 @@ for epoch in range(opt.epochs):
         wandb.log({'epoch': epoch ,'train_epoch_loss': running_loss, 
         'loss': loss.item()
         })
-    
+
     if epoch%5==0:
             model.eval()
             with torch.no_grad():
@@ -360,10 +360,9 @@ for epoch in range(opt.epochs):
                 if auroc > best_valid_auroc:
                     best_valid_auroc = auroc
                     best_test_auroc = test_auroc
-                    best_test_accuracy = test_accuracy               
-                    torch.save(model.state_dict(),'%s/bestmodel.pth' % (modelsave_path))         
+                    best_test_accuracy = test_accuracy
+                    torch.save(model.state_dict(),'%s/bestmodel.pth' % (modelsave_path))
             model.train()
-                
 
 
 total_parameters = count_parameters(model)
@@ -374,5 +373,5 @@ else:
     print('Accuracy on best model:  %.3f' %(best_test_accuracy))
 if opt.active_log:
     wandb.log({'total_parameters': total_parameters, 'test_auroc_bestep':best_test_auroc , 
-    'test_accuracy_bestep':best_test_accuracy,'cat_dims':len(cat_idxs) , 'con_dims':len(con_idxs) })     
+    'test_accuracy_bestep':best_test_accuracy,'cat_dims':len(cat_idxs) , 'con_dims':len(con_idxs) })
 

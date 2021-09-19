@@ -37,12 +37,15 @@ def data_download(dataset):
     elif dataset == 'spambase':
         dataset_name = 'spambase'
         target = 57
-        
+
     elif dataset == 'loan_data':
         dataset_name = 'loan_data'
         target = 13
     elif dataset == 'arcene':
         dataset_name = 'arcene'
+        target = 'target'
+    elif dataset == 'crc':
+        dataset_name = 'crc'
         target = 'target'
     elif dataset == 'creditcard':
         dataset_name = 'creditcard'
@@ -58,7 +61,7 @@ def data_download(dataset):
         target = 39
     else:
         print('TODO: HAVE TO DO THIS DATASET!')
-        
+
     out = Path(os.getcwd()+'/data/'+dataset_name+'.csv')
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
@@ -69,7 +72,7 @@ def data_download(dataset):
             wget.download(url, out.as_posix())
         else:
             raise 'Download the dataset from the link mentioned in github first'
-        
+
     if dataset=='1995_income':
         train = pd.read_csv(out,header=None)
     elif dataset=='bank_marketing':
@@ -100,6 +103,10 @@ def data_download(dataset):
         tg_list = train['target'].tolist()
         # train = train.loc[:, train.std() > 7]
         train = train.loc[:, train.std() > 150]
+        train['target'] = tg_list
+    elif dataset == 'crc':
+        train = pd.read_csv(out,sep=',',skiprows=0)
+        tg_list = train['target'].tolist()
         train['target'] = tg_list
     elif dataset == 'creditcard':
         train = pd.read_csv(out,header=None,skiprows=1)
@@ -183,7 +190,7 @@ def data_mask_split(X,y,mask,y_mask,indices,mask_det,stage):
     
 def data_prep(dataset,seed,mask_det=None, datasplit=[.65, .15, .2]):
     np.random.seed(seed) 
-    if dataset in ['1995_income','bank_marketing','qsar_bio','online_shoppers','blastchar','htru2','shrutime','spambase','arcene','creditcard','arrhythmia','forest','kdd99']:
+    if dataset in ['1995_income','bank_marketing','qsar_bio','online_shoppers','blastchar','htru2','shrutime','spambase','arcene','creditcard','arrhythmia','forest','kdd99', 'crc']:
         train,target = data_download(dataset)
         temp = train.fillna("ThisisNan")
         if "Set" not in train.columns:
@@ -232,7 +239,7 @@ def data_prep(dataset,seed,mask_det=None, datasplit=[.65, .15, .2]):
         for col in cont_columns:
             train.fillna(train.loc[train_indices, col].mean(), inplace=True)
 
-         
+
         cat_idxs = [ i for i, f in enumerate(features) if f in categorical_columns]
         con_idxs = list(set(range(len(features))) - set(cat_idxs))
         cat_dims = [ categorical_dims[f] for i, f in enumerate(features) if f in categorical_columns]
@@ -246,7 +253,7 @@ def data_prep(dataset,seed,mask_det=None, datasplit=[.65, .15, .2]):
         test_indices = train[train.Set=="test"].index
         unused_feat = ['Set']
         features = [ col for col in train.columns if col not in unused_feat+[target]]
-        
+
         cat_idxs = np.where(np.isin(data_types, ['Categorical','Binary']))[0]
         con_idxs = np.where(data_types == 'Numerical')[0]
         for col in cat_idxs:
@@ -276,16 +283,13 @@ def data_prep(dataset,seed,mask_det=None, datasplit=[.65, .15, .2]):
     X_valid, y_valid = data_mask_split(X,Y,mask,y_mask,valid_indices,mask_det,'valid')
     X_test, y_test = data_mask_split(X,Y,mask,y_mask,test_indices,mask_det,'test')
     # print(X_train['data'].shape, y_train['data'].shape,X_valid['data'].shape,y_valid['data'].shape,X_test['data'].shape,y_test['data'].shape)
-    
+
     train_mean, train_std = np.array(X_train['data'][:,con_idxs],dtype=np.float32).mean(0), np.array(X_train['data'][:,con_idxs],dtype=np.float32).std(0)
     return cat_dims, cat_idxs, con_idxs, X_train, y_train, X_valid, y_valid, X_test, y_test, train_mean, train_std
 
 
-        
-
 class DataSetCatCon(Dataset):
     def __init__(self, X, Y, cat_cols,continuous_mean_std=None, is_pretraining=False,tag=None):
-        
         cat_cols = list(cat_cols)
         X_mask =  X['mask'].copy()
         X = X['data'].copy()
@@ -300,20 +304,18 @@ class DataSetCatCon(Dataset):
             self.X2 = (self.X2 - mean) / std
             self.y = Y['data']
             self.y_mask = Y['mask']
-            
+
         else:
             self.y = np.expand_dims(np.array(Y['data']),axis=-1)
             self.y_mask = np.expand_dims(np.array(Y['mask']),axis=-1)
-        
+
         self.X1_mask = X_mask[:,cat_cols].copy().astype(np.int64) #categorical columns
         self.X2_mask = X_mask[:,con_cols].copy().astype(np.int64) #numerical columns
-        
-        
-        
+
 
     def __len__(self):
         return len(self.y)
-    
+
     def __getitem__(self, idx):
         # X1 has categorical data, X2 has continuous
         if self.is_pretraining:
@@ -342,7 +344,7 @@ def vision_data_prep(dataset,seed,mask_det=None, datasplit=[0.8,0.2]):
         test_set =  datasets.MNIST(root=data_dir, train=False, 
                 download=True)
         X_test['data'], y_test['data'] = torch.flatten(test_set.data.long(), start_dim=1, end_dim=-1).numpy(), test_set.targets.numpy()
-        
+
     else:
         raise 'Dataset not found'
 
@@ -362,9 +364,5 @@ def vision_data_prep(dataset,seed,mask_det=None, datasplit=[0.8,0.2]):
     y_valid['mask'] = np.zeros_like(y_valid['data'])
     y_test['mask'] = np.zeros_like(y_test['data'])
 
-    
 
     return cat_dims, cat_idxs, con_idxs, X_train, y_train, X_valid, y_valid, X_test, y_test, 0, 0
-
-
-
